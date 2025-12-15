@@ -1,6 +1,34 @@
 #!/usr/bin/env bash
 
-# read the puzzle from stdin
-while read -r puzzle; do
+# pull in some scripts for debugigng
+. ~/vardump.bash
 
+# setup some vars
+height=0
+grandtotal=0
+
+# read the puzzle from stdin
+while read -r -a puzzle; do
+
+    # first setup the data
+    ((++height))
+    c=0
     
+    # then loop over each set to transpose into a single string
+    for data in "${puzzle[@]}"; do
+        if [[ -z ${col[$c]} ]]; then
+            col[$c]="$data"
+        else
+            col[$c]+=",$data"
+        fi
+        ((c++))
+    done
+done
+
+# calculate each columns total
+for i in "${col[@]}"; do
+
+    (( grandtotal+=$( echo "${i:0:-2}" | tr "," "${i: -1}" | bc ) ))
+done
+
+echo "Grand total: $grandtotal"
