@@ -1,0 +1,29 @@
+#!/usr/bin/env bash
+
+# setup some vars
+isrange=true
+
+# read puzzle from stdin
+while read -r puzzle; do
+
+    [[ -z "$puzzle" ]] && isrange=false && continue
+    if [[ "$isrange" == true ]]; then ranges+=("$puzzle");
+    else ingredients+=("$puzzle"); fi
+done
+
+# loop over each ingredient
+for (( i=0; i<${#ingredients[@]}; i++ )); do
+
+    #loop each ingredient over each range
+    for (( r=0; r<${#ranges[@]}; r++ )); do
+
+        IFS=- read -r left right <<< "${ranges[$r]}"
+        if  [[ ${ingredients[$i]} -ge $left ]] && \
+            [[ ${ingredients[$i]} -le $right ]]; then
+                fresh+=("${ranges[$r]}")
+                break
+        fi
+    done
+done
+
+echo "Total fresh: ${#fresh[@]}"

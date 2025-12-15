@@ -1,0 +1,29 @@
+#!/usr/bin/env bash
+
+# setup some vars
+numnice=0
+
+# read the puzzle input from stdin
+while read -r puzline; do
+
+    # check for 3 vowels
+    if [[ "$puzline" =~ ([aeiou].*){3} ]]; then
+        
+        # cannot contain these letter groups
+        if [[ "$puzline" =~ (ab|cd|pq|xy) ]]; then
+            continue
+        else
+
+            # contains at least one double letter
+            for letter in {a..z}; do
+                if [[ "$puzline" =~ "$letter$letter" ]]; then
+                    ((numnice++))
+                    break
+                fi
+            done
+        fi
+    fi
+
+done
+
+echo "Number of nice puzzles: $numnice"

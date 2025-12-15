@@ -1,0 +1,46 @@
+#!/usr/bin/env bash
+
+# read input from stdin
+read -r puzzle
+
+# setup some vars
+maxloops=40
+curloop=1
+
+while [[ $curloop -le $maxloops ]]; do
+
+    echo "Starting loop $curloop..."
+
+    # first we make a copy of the puzzle we can chop up
+    # then we reset the puzzle so it can be filled by the new look-and-say round
+    chopped="$puzzle"
+    puzzle=""
+
+    # perform the look-and-say round
+    while [[ ${#chopped} -gt 0 ]]; do
+
+        # grab the next character
+        [[ "$chopped" =~ ^(.) ]] && {
+                
+                # grab all copies of that char and any remainder
+                [[ "$chopped" =~ ^(${BASH_REMATCH[1]}+)(.*) ]] && {
+
+                    char="${BASH_REMATCH[1]:0:1}"
+                    len=${#BASH_REMATCH[1]}
+
+                    # add the quantity & digit to the puzzle input
+                    puzzle+="$len$char"
+
+                    # set the chopped puzzle to anything remaining
+                    chopped="${BASH_REMATCH[2]}"
+                }
+        }
+    done
+
+    #echo -e "Finished loop $curloop: $puzzle"
+
+    ((curloop++))
+done
+
+echo "Final length: ${#puzzle}"
+echo "$puzzle" > rnd40

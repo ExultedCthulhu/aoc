@@ -1,0 +1,32 @@
+#!/usr/bin/env bash
+
+# read the puzzle input from stdin
+read -r lnin
+
+# starts on ground floor
+curfl=0
+
+# count the characters
+curch=0
+
+# loop until we enter the basement
+while ((curfl >= 0)); do
+    ((curch++))
+
+    case ${lnin:$((curch - 1)):1} in
+        '(')
+            # go up one floor
+            ((curfl++))
+            ;;
+        ')')
+            # go down one floor
+            ((curfl--))
+            ;;
+        *)
+            echo "WARNING: Unable to enter the basement with given input."
+            exit 1
+            ;;
+    esac
+done
+
+echo "Entered the basement at: $curch"

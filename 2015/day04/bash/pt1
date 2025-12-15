@@ -1,0 +1,28 @@
+#!/usr/bin/env bash
+
+# initialize the input (no need for file this time)
+input="yzbqklnj"
+
+count=0
+
+while true; do
+
+    # increase counter
+    ((count++))
+
+    # user counter to make seed
+    temp="$input$count"
+
+    # get hash
+    md5="$(echo -n "$temp" | md5sum)"
+
+    # check hash
+    if [[ "${md5:0:5}" == "00000" ]] 
+    then
+        break
+    fi
+
+    #echo "Tried $count"
+done
+
+echo "Lowest number: $count"

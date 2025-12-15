@@ -1,0 +1,45 @@
+#!/usr/bin/env bash
+
+# read the puzzle from stdin
+mapfile -t -d , puzzle
+
+# load script for commas
+. ~/analysis.sh
+
+# setup some vars
+invalids=0
+ranges="${#puzzle[@]}"
+
+# loop over each range
+for (( i=0; i<$ranges; i++ )); do
+
+    IFS=- read -r left right <<< "${puzzle[$i]}"
+    echo "Processing $(( i + 1 ))/$ranges - $( echo "$(( right - left + 1 ))" | commas ) ids"
+
+    # generate ids from range
+    for puzid in $(seq "$left" "$right"); do
+
+        # can only be up to half due to rule:
+        # made *only* of some sequence of digits repeated *at least* twice
+        len=$(( ${#puzid} / 2 ))
+
+        # potential shortcut for even-length mirrors
+        if [[ "${puzid:0:$len}" == "${puzid:$len}" ]]; then
+            ((invalids+=$puzid))
+            continue
+        fi
+
+        # start looping over every combination
+        for (( p=1; p<=$len; p++ )); do
+
+            subid=${puzid:0:$p}
+            if [[ "$puzid" =~ ^($subid)+$ ]]; then
+                ((invalids+=$puzid))
+                break
+            fi
+        done
+
+    done
+done
+
+echo "Sum of invalid ids: $invalids"

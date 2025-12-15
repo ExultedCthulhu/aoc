@@ -1,0 +1,66 @@
+#!/usr/bin/env bash
+
+# setup some vars
+dial=50
+zeros=0
+
+# read the puzzle from stdin
+while read -r puzzle; do
+
+    dir="${puzzle:0:1}"
+    num="${puzzle:1}"
+
+    # do some value sanitation
+    if [[ num -ge 100 ]]; then
+        (( zeros+=${num:0:1} ))
+        num="${num:1}"
+    fi
+    if [[ "${num:0:1}" -eq 0 ]]; then
+        num="${num:1}"
+    fi
+
+    # this is prevent extra zeros being counted when coming from 0
+    if [[ dial -eq 0 ]]; then
+        prevdial=0
+    elif [[ -v prevdial ]]; then
+        unset prevdial
+    fi
+
+    # spin the dial in the specified direction
+    case "$dir" in
+        L)
+            if [[ num -le dial ]]; then
+                (( dial-=num ))
+            else
+                dial=$(( dial + 100 - num ))
+                if [[ dial -ne 0 ]] && \
+                   [[ ! -v prevdial ]]; then
+                    ((zeros++))
+                fi
+            fi
+            ;;
+        R)
+            if [[ num -le $(( 99 - dial )) ]]; then
+                (( dial+=num ))
+            else
+                dial=$(( dial - 100 + num ))
+                if [[ dial -ne 0 ]] && \
+                   [[ ! -v prevdial ]]; then
+                    ((zeros++))
+                fi
+            fi
+            ;;
+        *)
+            echo "WARNING: Unkonwn direction"
+            exit 1 ;;
+    esac
+
+    # check if dial finished on zero
+    if [[ dial -eq 0 ]]; then
+        ((zeros++))
+    fi
+
+done
+
+# output amount of times it landed on zero
+echo "Zeros: $zeros"

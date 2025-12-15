@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+
+# read the puzzle from stdin
+while read -r puzzle; do
+
+    

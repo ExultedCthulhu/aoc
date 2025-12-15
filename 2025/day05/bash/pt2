@@ -1,0 +1,68 @@
+#!/usr/bin/env bash
+
+# setup some vars
+isrange=true
+fresh=0
+
+# read puzzle from stdin
+while read -r puzzle; do
+
+    [[ -z "$puzzle" ]] && isrange=false && continue
+    if [[ "$isrange" == true ]]; then ranges+=("$puzzle");
+    else ingredients+=("$puzzle"); fi
+done
+
+# loop over all ranges until we can no longer combine them
+while true; do
+
+    # reindex the array for easier handling
+    ranges=("${ranges[@]}")
+    len=${#ranges[@]}
+
+    # check each {r}ange {a}gainst the others
+    for (( r=0; r<len; r++ )); do
+
+        IFS=- read -r rl rr <<< "${ranges[$r]}"
+        for (( a=0; a<len; a++ )); do
+            
+            # skip if self
+            [[ $r -eq $a ]] && continue
+
+            IFS=- read -r al ar <<< "${ranges[$a]}"
+            min=$(( rl <= al ? rl : al ))
+            max=$(( rr >= ar ? rr : ar ))
+
+            # check if either side overlaps
+            #
+            # first the left side:  range   |     |
+            #                       against    |     |
+            #
+            # then the right side:  range      |     |
+            #                       against |     |
+            #
+            # then if r overlaps:   range   |        |
+            #                       against    |  |
+
+            if  [[  ( $rl -le $al && $rr -ge $al && $rr -le $ar ) || \
+                    ( $al -le $rl && $ar -ge $rl && $ar -le $rr ) || \
+                    ( $rl -le $al && $rr -ge $ar ) ]]; then
+                        ranges[$r]="$min-$max"
+                        unset "ranges[$a]"
+                        continue 3
+                        # restart the whole loop
+            fi
+        done
+    done
+
+    # stop loop when we can no longer combine ranges
+    break
+done
+
+# now we total the remaining ranges
+for range in "${ranges[@]}"; do
+
+    IFS=- read -r left right <<< "$range"
+    (( fresh+=$(( right - left + 1 )) ))
+done
+
+echo "Total fresh: $fresh"

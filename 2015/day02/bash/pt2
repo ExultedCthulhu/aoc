@@ -1,0 +1,20 @@
+#!/usr/bin/env bash
+
+# prep the final output
+totalribbon=0
+
+# read the puzzle from stdin
+while read -r puzzle; do
+
+    # setup dimensions
+    IFS='x' read l w h <<< "$puzzle"
+
+    # first get present dimensions
+    subtotal=$((l*w*h))
+
+    # sort, find 2 shortest, multiply & add to totalribbon
+    ((totalribbon += subtotal + 2*($(echo -e "$l\n$w\n$h" | sort -n | head -n 2 | paste -s -d "+"))))
+
+done
+
+echo "Amount of ribbon needed: $totalribbon"

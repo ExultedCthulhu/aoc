@@ -1,0 +1,20 @@
+#!/usr/bin/env bash
+
+# prep the final output
+totalpaper=0
+
+# read the puzzle from stdin
+while read -r puzzle; do
+
+    # setup dimensions
+    IFS='x' read l w h <<< "$puzzle"
+
+    # first get subtotal
+    subtotal=$((2*l*w+2*w*h+2*h*l))
+
+    # sort, find 2 shortest, multiply & add to totalpaper
+    ((totalpaper += subtotal + $(echo -e "$l\n$w\n$h" | sort -n | head -n 2 | paste -s -d "*") ))
+
+done
+
+echo "Total square feet needed: $totalpaper"

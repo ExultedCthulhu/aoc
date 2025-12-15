@@ -1,0 +1,72 @@
+#!/usr/bin/env bash
+
+# prep the vars
+declare -A lights
+curline=0
+totalbrightness=0
+
+# read the puzzle from stdin
+while read -r puzline; do
+
+    echo -n "Current line: $((++curline)) - "
+
+    # Extract the command and coords
+    [[ "$puzline" =~ ([^0-9]+)\ ([0-9]+),([0-9]+)[^0-9]+([0-9]+),([0-9]+) ]] && {
+
+        # 1 = command
+        # 2 = x1
+        # 3 = y1
+        # 4 = x2
+        # 5 = y2
+
+        echo "$(( ( ${BASH_REMATCH[4]} - ${BASH_REMATCH[2]} + 1 ) * ( ${BASH_REMATCH[5]} - ${BASH_REMATCH[3]} + 1 ) )) cells"
+
+        # loop over each cell in the coords
+        for (( x=${BASH_REMATCH[2]}; x<=${BASH_REMATCH[4]}; x++ )); do
+            for (( y=${BASH_REMATCH[3]}; y<=${BASH_REMATCH[5]}; y++ )); do
+
+                xy="${x}x$y"
+
+                # determine what command to run
+                case "${BASH_REMATCH[1]}" in
+                    'turn on')
+                        # increase by 1, no max
+                        if [[ ! -v lights["$xy"] ]]; then
+                            lights[$xy]=1
+                        else
+                            ((lights[$xy]++))
+                        fi
+                        ;;
+                    'turn off')
+                        # decrease by 1, min 0
+                        if [[ -v lights["$xy"] ]]; then
+                            ((lights[$xy]--))
+                            if [[ lights[$xy] -le 0 ]]; then
+                                unset lights["$xy"]
+                            fi
+                        fi
+                        ;;
+                    'toggle')
+                        # increase by 2
+                        if [[ ! -v lights["$xy"] ]]; then
+                            lights[$xy]=2
+                        else
+                            ((lights[$xy]+=2))
+                        fi
+                        ;;
+                    *)
+                        echo "WARNING: unknown command"
+                        exit 1
+                        ;;
+                esac
+            done
+        done
+    }
+done
+
+echo "Calculating totals.."
+for key in "${!lights[@]}"; do
+    ((totalbrightness+=lights[$key]))
+done
+
+echo "Total brightness: $totalbrightness"

@@ -1,0 +1,33 @@
+#!/usr/bin/env bash
+
+# load vardump for debugging
+. ~/vardump.sh
+
+# read the puzzle from stdin
+mapfile -t -d ',' puzzle
+
+# setup some vars
+invalids=0
+
+# loop over each range
+for (( i=0; i<${#puzzle[@]}; i++ )); do
+
+    IFS=- read -r left right <<< "${puzzle[$i]}"
+    #count=$(( ( right + 1 ) - left ))
+
+    # generate ids from range
+    for puzid in $(seq "$left" "$right"); do
+
+        # only process even length ids
+        if (( ${#puzid} % 2 == 0 )); then
+
+            # check if mirror
+            len=$(( ${#puzid} / 2 ))
+            if [[ "${puzid:0:$len}" -eq "$((10#${puzid:$len}))" ]]; then
+                ((invalids+=$puzid))
+            fi
+        fi
+    done
+done
+
+echo "Sum of invalid ids: $invalids"

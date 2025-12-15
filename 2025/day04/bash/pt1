@@ -1,0 +1,82 @@
+#!/usr/bin/env bash
+
+# setup some vars
+declare -A puzzle
+width=0 height=0
+maxrolls=3
+distance=1
+
+# read puzzle from stdin
+while read -r puzline; do
+
+    width="${#puzline}"
+    ((height++))
+
+    # read each character into an array
+    for (( x=1; x<=width; x++ )); do
+
+        xy="${x}x$height"
+        puzzle[$xy]="${puzline:x-1:1}"
+    done
+done
+
+# create a function to print the map for debugging
+printpuzzle () { 
+
+    local x=1
+    local y=1
+
+    for (( y=1; y<=height; y++ )); do
+        for (( x=1; x<=width; x++ )); do
+            echo -n "${puzzle[${x}x$y]}"
+        done
+        echo
+    done
+}
+
+# now we need a function to check the surrounding cells
+checksurrounding () {
+
+    local x=$1 y=$2
+    local distance=${3:-1} ldist
+    local ix iy xy
+    local count=0
+
+    # first setup the grid to check
+    for (( ldist=1; ldist<=distance; ldist++ )); do
+        for (( iy=y-ldist; iy<=y+ldist; iy+=ldist )); do
+            for (( ix=x-ldist; ix<=x+ldist; ix+=ldist )); do
+                
+                xy="${ix}x$iy"
+                
+                # check it exists, isnt the starting coords, 
+                # is a roll and doesnt exceed the total
+                if  [[ -v "puzzle[$xy]" ]] && \
+                    [[ "$xy" != "${x}x$y" ]] && \
+                    [[ "${puzzle[$xy]}" == "@" ]]; then
+                        if [[ $count -lt $maxrolls ]]; then
+                            ((count++))
+                        else
+                            return 1
+                        fi
+                fi
+            done
+        done
+    done
+
+    return 0
+}
+
+# step through the whole puzzle
+for (( y=1; y<=height; y++ )); do
+    for (( x=1; x<=width; x++ )); do
+
+        # only process rolls
+        if  [[ "${puzzle[${x}x$y]}" == "@" ]] && \
+            checksurrounding "$x" "$y"; then
+                accrolls+=("${x}x$y")
+        fi
+    done
+done
+
+echo "Found ${#accrolls[@]} rolls"

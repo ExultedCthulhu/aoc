@@ -1,0 +1,46 @@
+#!/usr/bin/env bash
+
+# read from stdin
+read -r input
+
+# setup array for visited houses & coords
+declare -A houses
+x=0 y=0
+houses[0x0]=1
+
+# loop over input
+for (( i=0; i<${#input}; i++ ))
+do
+    # current command
+    curcmd=${input:$i:1}
+
+    # follow direction
+    case "$curcmd" in
+        '^')
+            ((y++))
+            ;;
+        'v')
+            ((y--))
+            ;;
+        '<')
+            ((x--))
+            ;;
+        '>')
+            ((x++))
+            ;;
+        *)
+            echo "WARNING: unknown direction"
+            exit 1
+            ;;
+    esac
+
+    # increase present count
+    xy="${x}x$y"
+    if [[ ! -v houses["$xy"] ]]; then
+        houses["$xy"]=1
+    else
+        ((houses["$xy"]++))
+    fi
+done
+
+echo "Number of houses: ${#houses[@]}"

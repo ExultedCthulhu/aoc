@@ -1,0 +1,51 @@
+#!/usr/bin/env bash
+
+# import custom loop timer
+source ~/loop_timer.sh
+
+# start from round 40 of cached input
+puzzle="$(<rnd40)"
+
+# setup some vars
+maxloops=10
+curloop=1
+
+# reset the timer
+lt_reset
+
+while [[ $curloop -le $maxloops ]]; do
+
+    echo "Starting loop $curloop/$maxloops..."
+    lt_start
+
+    # first we make a copy of the puzzle we can chop up
+    # then we reset the puzzle so it can be filled by the new look-and-say round
+    chopped="$puzzle"
+    puzzle=""
+
+    # perform the look-and-say round
+    while [[ ${#chopped} -gt 0 ]]; do
+
+        # find the next char
+        char="${chopped:0:1}"
+
+        # grab the next chars and any remainder
+        [[ "$chopped" =~ ^($char+)(.*) ]] && {
+
+            len=${#BASH_REMATCH[1]}
+
+            # add the quantity & digit to the puzzle input
+            puzzle+="$len$char"
+
+            # set the chopped puzzle to anything remaining
+            chopped="${BASH_REMATCH[2]}"
+        }
+    done
+
+    #echo "Finished loop $curloop: $puzzle"
+    lt_stop
+
+    ((curloop++))
+done
+
+echo "Final length: ${#puzzle}"
