@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 
+# note: this script doesnt use stdin, instead it uses a filename in parameter 1
+
 # pull in some scripts for debugigng
 . ~/vardump.bash
 
