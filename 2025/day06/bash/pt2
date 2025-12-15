@@ -1,0 +1,50 @@
+#!/usr/bin/env bash
+
+# pull in some scripts for debugigng
+. ~/vardump.bash
+
+# setup some vars
+file="$1"
+grandtotal=0
+
+# get the operator line
+ops="$( tac $file | head -n 1 )"
+
+# get the input without operators
+input="$( head -n -1 $file )"
+
+# separate each operator into a column with its width
+while true; do
+
+    if [[ "$ops" =~ ^[[:space:]]?(.)([[:space:]]*)($|[[:space:]][^[:space:]].*) ]]; then
+
+        char="${BASH_REMATCH[1]}"
+        spaces="${BASH_REMATCH[2]}"
+        remain="${BASH_REMATCH[3]}"
+
+        col+=("$char,$((${#spaces}+1))")
+    else
+        echo "Something went wrong: no regex match, exiting"
+        exit 1
+    fi
+
+    [[ "${#remain}" -eq 0 ]] && break
+    ops="$remain"
+done
+
+# now add each line into each column
+while IFS= read -r line; do
+
+    c=0
+    for (( i=0; i<${#col[@]}; i++ )); do
+
+        len="${col[$i]:2:1}"
+        col[$i]+=",${line:0:$len}"
+        line="${line:$len+1}"
+    done
+done <<< "$input"
+
+# now that we transposed each column into a single string
+# we need to process each char
+
+# possibly split each into xy coords and build a string to pipe into bc?
