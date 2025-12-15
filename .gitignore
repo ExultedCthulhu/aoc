@@ -1,0 +1,2 @@
+# Ignore any file literally named "input" anywhere in the repo
+**/input
