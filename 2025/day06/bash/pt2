@@ -14,6 +14,7 @@ grandtotal=0
 ops="$( tail -n 1 $file )"
 
 # separate each operator into a column with its width
+echo "Getting column details.."
 while true; do
 
     if [[ "$ops" =~ ^[[:space:]]?(.)([[:space:]]*)($|[[:space:]][^[:space:]].*) ]]; then
@@ -33,6 +34,7 @@ while true; do
 done
 
 # now add each line into each column
+echo "Building columns.."
 while IFS= read -r line; do
 
     for (( i=0; i<${#col[@]}; i++ )); do
@@ -43,9 +45,33 @@ while IFS= read -r line; do
     done
 done < <(head -n -1 "$file")
 
-vardump col
-
 # now that we transposed each column into a single string
-# we need to process each char
+# we need to process each char vertically
 
-# possibly split each into xy coords and build a string to pipe into bc?
+# process each column
+echo "Processing columns.."
+for column in "${col[@]}"; do
+
+    # get the data of each column
+    IFS=, read -r -a data <<< "$column"
+    char="${data[0]}"
+    len="${data[1]}"
+    unset temp
+
+    # loop over each number and store in temp var
+    for (( x=0; x<$len; x++ )); do
+
+        [[ -n $temp ]] && temp+="$char"
+
+        for (( y=2; y<${#data[@]}; y++ )); do
+
+            cell="${data[$y]:x:1}"
+            [[ $cell =~ ^[0-9]$ ]] && temp+="$cell"
+        done
+    done
+
+    # calcluate the final string
+    (( grandtotal+=$( echo "$temp" | bc ) ))
+done
+
+echo "Grand total: $grandtotal"
