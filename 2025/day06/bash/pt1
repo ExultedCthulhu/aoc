@@ -28,7 +28,7 @@ done
 # calculate each columns total
 for i in "${col[@]}"; do
 
-    (( grandtotal+=$( echo "${i:0:-2}" | tr "," "${i: -1}" | bc ) ))
+    (( grandtotal+=$( echo "${i:0: -2}" | tr "," "${i: -1}" | bc ) ))
 done
 
 echo "Grand total: $grandtotal"

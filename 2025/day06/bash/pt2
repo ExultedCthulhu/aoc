@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 
-# note: this script doesnt use stdin, instead it uses a filename in parameter 1
+# note: this script does not use stdin, 
+#       instead it uses a filename as parameter 1
 
 # pull in some scripts for debugigng
 . ~/vardump.bash
@@ -10,10 +11,7 @@ file="$1"
 grandtotal=0
 
 # get the operator line
-ops="$( tac $file | head -n 1 )"
-
-# get the input without operators
-input="$( head -n -1 $file )"
+ops="$( tail -n 1 $file )"
 
 # separate each operator into a column with its width
 while true; do
@@ -37,14 +35,15 @@ done
 # now add each line into each column
 while IFS= read -r line; do
 
-    c=0
     for (( i=0; i<${#col[@]}; i++ )); do
 
         len="${col[$i]:2:1}"
         col[$i]+=",${line:0:$len}"
         line="${line:$len+1}"
     done
-done <<< "$input"
+done < <(head -n -1 "$file")
+
+vardump col
 
 # now that we transposed each column into a single string
 # we need to process each char
