@@ -1,48 +1,69 @@
 #!/usr/bin/env bash
 
+# I'm sure there are much better ways of doing this
+# but my limited knowledge could only see the brute force path
+# and it only took 17 seconds to run so i felt it good enough for now
+
 # read the puzzle from stdin
 read -r puzzle
 
-# setup some vars
-accum=0
+# create a function to sum input
+getsum () {
 
-# remove any object {} which has a property with the value "red"
-# find the next object
+    local puzzle="$1"
+    local accum=0
+
+    while true; do
+        if [[ "$puzzle" =~ ^[^0-9\-]+(-?[0-9]+)(.*) ]]; then
+            (( accum += ${BASH_REMATCH[1]} ))
+            puzzle="${BASH_REMATCH[2]}"
+        else break
+        fi
+    done
+
+    echo "$accum"
+}
+
+# process all objects {} from the inside out
+# remove any object with a property value of "red"
+# replace valid objects with a sum
 while true; do
-    if [[ "$puzzle" =~ ^(.*)(\{[^\{\}]+:\"red\") ]]; then
 
-        start="${#BASH_REMATCH[1]}"
-        len="${#BASH_REMATCH[2]}"
-        need=1
+    # find the next innermost object
+    if [[ "$puzzle" =~ ^([^\{\}]*[\{]).*$ ]]; then
 
-        # loop until we find the end
-        while [[ $need -gt 0 ]]; do
+        start=$(( ${#BASH_REMATCH[1]}-1 ))
+        for (( i=start+1; i<${#puzzle}; i++ )); do
 
-            # find next {} and increase/decrease need accordingly
-            # add length to len
+            if [[ "${puzzle:i:1}" == "{" ]]; then
+                start=$i
+                continue
+            elif [[ "${puzzle:i:1}" == "}" ]]; then
+                end=$i
+                break
+            fi
         done
 
-        # substring object with 0
+        # setup the vars we'll need
+        before="${puzzle:0:start}"
+        object="${puzzle:start:$((end-start+1))}"
+        after="${puzzle:end+1}"
+        
+        # check if any property value is "red"
+        if [[ "$object" =~ :\"red\" ]]; then
+            object="x"
+        else
+            object="$(getsum $object)"
+        fi
 
-    else
-        # end loop if there are no more red-valued objects
-        break
-    fi
-done
-exit
+        # modify the puzzle input and restart the loop
+        puzzle="$before$object$after"
 
-
-
-# loop over the input until we run out of digits
-while true; do
-
-    if [[ "$puzzle" =~ ^[^0-9\-]+(-?[0-9]+)(.*) ]]; then
-
-        (( accum += ${BASH_REMATCH[1]} ))
-        puzzle="${BASH_REMATCH[2]}"
-    else
-        break
+    # break out of the loop if there are no more objects
+    else break
     fi
 done
 
+# loop over the puzzle until we run out of digits
+accum="$(getsum $puzzle)"
 echo "Total: $accum"
