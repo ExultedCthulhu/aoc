@@ -13,12 +13,9 @@ getsum () {
     local puzzle="$1"
     local accum=0
 
-    while true; do
-        if [[ "$puzzle" =~ ^[^0-9\-]+(-?[0-9]+)(.*) ]]; then
-            (( accum += ${BASH_REMATCH[1]} ))
-            puzzle="${BASH_REMATCH[2]}"
-        else break
-        fi
+    while [[ "$puzzle" =~ ^[^0-9\-]+(-?[0-9]+)(.*) ]]; do
+        (( accum += ${BASH_REMATCH[1]} ))
+        puzzle="${BASH_REMATCH[2]}"
     done
 
     echo "$accum"
@@ -27,41 +24,35 @@ getsum () {
 # process all objects {} from the inside out
 # remove any object with a property value of "red"
 # replace valid objects with a sum
-while true; do
+while [[ "$puzzle" =~ ^([^\{\}]*[\{]).*$ ]]; do
 
     # find the next innermost object
-    if [[ "$puzzle" =~ ^([^\{\}]*[\{]).*$ ]]; then
+    start=$(( ${#BASH_REMATCH[1]}-1 ))
+    for (( i=start+1; i<${#puzzle}; i++ )); do
 
-        start=$(( ${#BASH_REMATCH[1]}-1 ))
-        for (( i=start+1; i<${#puzzle}; i++ )); do
-
-            if [[ "${puzzle:i:1}" == "{" ]]; then
-                start=$i
-                continue
-            elif [[ "${puzzle:i:1}" == "}" ]]; then
-                end=$i
-                break
-            fi
-        done
-
-        # setup the vars we'll need
-        before="${puzzle:0:start}"
-        object="${puzzle:start:$((end-start+1))}"
-        after="${puzzle:end+1}"
-        
-        # check if any property value is "red"
-        if [[ "$object" =~ :\"red\" ]]; then
-            object="x"
-        else
-            object="$(getsum $object)"
+        if [[ "${puzzle:i:1}" == "{" ]]; then
+            start=$i
+            continue
+        elif [[ "${puzzle:i:1}" == "}" ]]; then
+            end=$i
+            break
         fi
+    done
 
-        # modify the puzzle input and restart the loop
-        puzzle="$before$object$after"
-
-    # break out of the loop if there are no more objects
-    else break
+    # setup the vars we'll need
+    before="${puzzle:0:start}"
+    object="${puzzle:start:$((end-start+1))}"
+    after="${puzzle:end+1}"
+    
+    # check if any property value is "red"
+    if [[ "$object" =~ :\"red\" ]]; then
+        object="x"
+    else
+        object="$(getsum $object)"
     fi
+
+    # modify the puzzle input and restart the loop
+    puzzle="$before$object$after"
 done
 
 # loop over the puzzle until we run out of digits
