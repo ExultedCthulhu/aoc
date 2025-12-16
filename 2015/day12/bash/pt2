@@ -1,0 +1,48 @@
+#!/usr/bin/env bash
+
+# read the puzzle from stdin
+read -r puzzle
+
+# setup some vars
+accum=0
+
+# remove any object {} which has a property with the value "red"
+# find the next object
+while true; do
+    if [[ "$puzzle" =~ ^(.*)(\{[^\{\}]+:\"red\") ]]; then
+
+        start="${#BASH_REMATCH[1]}"
+        len="${#BASH_REMATCH[2]}"
+        need=1
+
+        # loop until we find the end
+        while [[ $need -gt 0 ]]; do
+
+            # find next {} and increase/decrease need accordingly
+            # add length to len
+        done
+
+        # substring object with 0
+
+    else
+        # end loop if there are no more red-valued objects
+        break
+    fi
+done
+exit
+
+
+
+# loop over the input until we run out of digits
+while true; do
+
+    if [[ "$puzzle" =~ ^[^0-9\-]+(-?[0-9]+)(.*) ]]; then
+
+        (( accum += ${BASH_REMATCH[1]} ))
+        puzzle="${BASH_REMATCH[2]}"
+    else
+        break
+    fi
+done
+
+echo "Total: $accum"

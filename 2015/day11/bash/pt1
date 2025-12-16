@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+
+# not sure how to tackle this yet so im going to lay out ideas until i can figure that out.
+
+# read puzzle from stdin
+read -r puzzle
+
+# create function to check pw validity
+
+# loop until we find a valid pw

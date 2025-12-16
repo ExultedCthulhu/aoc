@@ -1,0 +1,21 @@
+#!/usr/bin/env bash
+
+# read the puzzle from stdin
+read -r puzzle
+
+# setup some vars
+accum=0
+
+# loop over the input until we run out of digits
+while true; do
+
+    if [[ "$puzzle" =~ ^[^0-9\-]+(-?[0-9]+)(.*) ]]; then
+
+        (( accum += ${BASH_REMATCH[1]} ))
+        puzzle="${BASH_REMATCH[2]}"
+    else
+        break
+    fi
+done
+
+echo "Total: $accum"
