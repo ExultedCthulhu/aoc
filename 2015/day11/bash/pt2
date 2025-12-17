@@ -1,5 +1,8 @@
 #!/usr/bin/env bash
 
+# this is the exact same code from pt1 as the instructions were just 'do it again'
+# only copied the file for visual completeness
+
 # read puzzle from stdin
 read -r puzzle
 
