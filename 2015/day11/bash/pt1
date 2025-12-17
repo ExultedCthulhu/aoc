@@ -5,6 +5,59 @@
 # read puzzle from stdin
 read -r puzzle
 
-# create function to check pw validity
+# setup some vars
+declare -A letnum numlet
+for letter in {a..z}; do
+    letnum[$letter]=$((++num))
+    numlet[$num]=$letter
+done
 
-# loop until we find a valid pw
+# create a function to validate a password
+checkpw () {
+
+    local pw="$1"
+    local len="${#pw}"
+    local validrules=0
+    local i j
+
+    # Passwords may not contain the letters i, o, or l
+    [[ "$pw" =~ [iol] ]] && return 1
+    ((validrules++))
+
+    # Passwords must include one increasing straight of at least three letters
+    for (( i=0; i<len-2; i++ )); do
+
+        local straight="${pw:i:3}"
+        local si="${straight::1}"
+        [[ "$si" =~ ^[yz]$ ]] && continue
+
+        stcheck="${numlet[$(( ${letnum[$si]}+1 ))]}${numlet[$(( ${letnum[$si]}+2 ))]}"
+        if [[ "${straight:1}" == "$stcheck" ]]; then
+
+            ((validrules++))
+            break
+        fi
+    done
+
+    # Passwords must contain at least two different, non-overlapping pairs of letters
+    for (( i=0; i<len-3; i++ )); do
+        if [[ "${pw:i:1}" == "${pw:i+1:1}" ]]; then
+            # if we find the first pair, look for a second
+            for (( j=i+2; j<len-1; j++ )); do
+                if  [[ "${pw:j:1}" == "${pw:j+1:1}" ]] && \
+                    [[ "${pw:i:2}" != "${pw:j:2}" ]]; then
+
+                    ((validrules++))
+                    break 2
+                fi
+            done
+        fi
+    done
+
+    [[ $validrules -eq 3 ]] && return 0
+    return 1
+}
+
+
+# maybe create a function to increase a string by 1
+# w/option to increase index? or build in logic to ignore iol lines?
