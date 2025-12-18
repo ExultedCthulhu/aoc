@@ -1,0 +1,100 @@
+#!/usr/bin/env bash
+
+# setup some vars
+declare -A reindeer
+traveltime=2503
+
+# read the puzzle from stdin
+while read -r puzzle; do
+
+    ((index++))
+    [[ "$puzzle" =~ ^(.*)\ can\ fly\ ([0-9]+)[^0-9]+([0-9]+)[^0-9]+([0-9]+) ]] && {
+
+        reindeer["${BASH_REMATCH[1]}"]=$index
+        reindeeri[$index]="${BASH_REMATCH[1]}"
+        flkms[$index]="${BASH_REMATCH[2]}"
+        (( fldist[$index]=( ${BASH_REMATCH[2]} * ${BASH_REMATCH[3]} ) ))
+        fltime[$index]=${BASH_REMATCH[3]}
+        rstime[$index]=${BASH_REMATCH[4]}
+    }
+done
+
+# initialize the runner states
+for runner in "${reindeer[@]}"; do
+
+    # 0: distance, 
+    # 1: activity: {f}lying/{r}esting, 
+    # 2: duration, 
+    # 3: points
+    status[$runner]="0,f,0,0"
+done
+
+# loop through each second
+for (( i=1; i<=traveltime; i++ )); do
+
+    leaddist=0
+    leadrunn=()
+
+    # loop through each runner
+    for runner in "${reindeer[@]}"; do
+
+        # get stats and decide next move
+        IFS=, read -ra runstats <<< "${status[$runner]}"
+        (( runstats[2]++ ))
+        case "${runstats[1]}" in
+            f)
+                if [[ ${runstats[2]} -gt ${fltime[$runner]} ]]; then
+
+                    # switching to rest mode
+                    runstats[1]="r"
+                    runstats[2]=1
+                else
+
+                    (( runstats[0]+=${flkms[$runner]} ))
+                fi
+                ;;
+            r)
+                if [[ ${runstats[2]} -gt ${rstime[$runner]} ]]; then
+
+                    # switching to flight mode
+                    runstats[1]="f"
+                    runstats[2]=1
+                    (( runstats[0]+=${flkms[$runner]} ))
+                fi
+                ;;
+            *)
+                echo "WARNING: unknown runner status"
+                exit 1
+                ;;
+        esac
+
+        # determine if leader
+        if [[ ${runstats[0]} -gt $leaddist ]]; then
+
+            leaddist="${runstats[0]}"
+            leadrunn=("$runner")
+        elif [[ ${runstats[0]} -eq $leaddist ]]; then
+
+            leadrunn+=("$runner")
+        fi
+
+        # export runner stats
+        IFS=, status[$runner]="${runstats[*]}"
+    done
+
+    # award points to leader(s)
+    for runner in "${leadrunn[@]}"; do
+
+        (( curpoints = ${status[$runner]##*,} + 1 ))
+        otherstats="${status[$runner]%,*}"
+
+        status[$runner]="$otherstats,$curpoints"
+    done
+
+done
+
+# display the final points
+for runner in "${reindeer[@]}"; do
+
+    echo "${reindeeri[$runner]} has earned ${status[$runner]##*,} pts"
+done

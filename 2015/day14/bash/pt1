@@ -1,0 +1,40 @@
+#!/usr/bin/env bash
+
+# setup some vars
+declare -A reindeer
+traveltime=2503
+
+# read the puzzle from stdin
+while read -r puzzle; do
+
+    ((index++))
+    [[ "$puzzle" =~ ^(.*)\ can\ fly\ ([0-9]+)[^0-9]+([0-9]+)[^0-9]+([0-9]+) ]] && {
+
+        reindeer["${BASH_REMATCH[1]}"]=$index
+        reindeeri[$index]="${BASH_REMATCH[1]}"
+        flkms[$index]="${BASH_REMATCH[2]}"
+        (( fldist[$index]=( ${BASH_REMATCH[2]} * ${BASH_REMATCH[3]} ) ))
+        fltime[$index]=${BASH_REMATCH[3]}
+        rstime[$index]=${BASH_REMATCH[4]}
+    }
+done
+
+# loop through each reindeer
+for runner in "${reindeer[@]}"; do
+
+    # get the intial travel distance
+    (( loops=( $traveltime / ( ${fltime[$runner]} + ${rstime[$runner]} ) ) ))
+    (( traveled=( $loops * ${fldist[$runner]} ) ))
+
+    # add in any remainder    
+    (( remainder=( $traveltime % ( ${fltime[$runner]} + ${rstime[$runner]} ) ) ))
+    if [[ $remainder -le ${fltime[$runner]} ]]; then
+
+        (( traveled+=( $remainder * ${flkms[$runner]} ) ))
+    else
+
+        (( traveled+=${fldist[$runner]} ))
+    fi
+
+    echo "${reindeeri[$runner]} ran $traveled"
+done
