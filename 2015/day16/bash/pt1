@@ -1,0 +1,31 @@
+#!/usr/bin/env bash
+
+# setup some vars
+declare -A clues
+declare -a tempclues sues
+while IFS=": " read -ra tempclues; do
+
+    clues["${tempclues[0]}"]="${tempclues[1]}"
+done < clues
+
+# process input
+while IFS=":, " read -ra sues; do
+
+    # (
+    #         [0]='Sue'
+    #         [1]='477'
+    #         [2]='samoyeds'
+    #         [3]='0'
+    #         [4]='perfumes'
+    #         [5]='1'
+    #         [6]='pomeranians'
+    #         [7]='5'
+    # )
+
+    if  [[ "${clues[${sues[2]}]}" == "${sues[3]}" ]] && \
+        [[ "${clues[${sues[4]}]}" == "${sues[5]}" ]] && \
+        [[ "${clues[${sues[6]}]}" == "${sues[7]}" ]]; then
+
+            echo "Sue ${sues[1]} matched all three" 
+    fi
+done

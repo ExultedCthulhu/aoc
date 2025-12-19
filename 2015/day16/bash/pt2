@@ -1,0 +1,43 @@
+#!/usr/bin/env bash
+
+# setup some vars
+declare -A clues
+declare -a tempclues sues
+while IFS=": " read -ra tempclues; do
+
+    clues["${tempclues[0]}"]="${tempclues[1]}"
+done < clues
+
+# process input
+while IFS=":, " read -ra sues; do
+
+    # (
+    #         [0]='Sue'
+    #         [1]='477'
+    #         [2]='samoyeds'
+    #         [3]='0'
+    #         [4]='perfumes'
+    #         [5]='1'
+    #         [6]='pomeranians'
+    #         [7]='5'
+    # )
+
+    # loop through each property
+    for (( i=2; i<7; i+=2 )); do
+
+        # change determination based on new rules
+        case "${sues[$i]}" in
+            cats|trees)
+                (( ${sues[$i+1]} <= ${clues[${sues[$i]}]} )) && continue 2
+                ;;
+            pomeranians|goldfish)
+                (( ${sues[$i+1]} >= ${clues[${sues[$i]}]} )) && continue 2
+                ;;
+            *)
+                [[ ${sues[$i+1]} != ${clues[${sues[$i]}]} ]] && continue 2
+                ;;
+        esac
+    done
+
+    echo "Sue ${sues[1]} matched all three rules"
+done
