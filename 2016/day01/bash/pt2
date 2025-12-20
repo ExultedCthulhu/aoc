@@ -19,9 +19,10 @@ for (( i=0; i<${#puzzle[@]}; i++ )); do
     # walk the distance one step at a time
     for (( s=0; s<${puzzle[$i]:1}; s++ )); do
 
-        # add/subtract 1 to direction
-        if (( facing % 2 == 0 )); then (( x += ( facing == 4 ) ? -1 : 1 ))
-                                  else (( y += ( facing == 3 ) ? -1 : 1 ))
+        # add/subtract step in direction
+        if (( facing % 2 == 0 ))
+            then (( x += ( facing == 4 ) ? -1 : 1 ))
+            else (( y += ( facing == 3 ) ? -1 : 1 ))
         fi
 
         # check if its been visited

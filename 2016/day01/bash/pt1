@@ -16,8 +16,9 @@ for (( i=0; i<${#puzzle[@]}; i++ )); do
 
 
     # add amount to direction
-    if (( facing % 2 == 0 )); then (( x += ( facing == 4 ) ? "-${puzzle[$i]:1}" : ${puzzle[$i]:1} ))
-                              else (( y += ( facing == 3 ) ? "-${puzzle[$i]:1}" : ${puzzle[$i]:1} ))
+    if (( facing % 2 == 0 ))
+        then (( x += ( facing == 4 ) ? "-${puzzle[$i]:1}" : ${puzzle[$i]:1} ))
+        else (( y += ( facing == 3 ) ? "-${puzzle[$i]:1}" : ${puzzle[$i]:1} ))
     fi
 done
 
