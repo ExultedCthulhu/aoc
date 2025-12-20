@@ -1,0 +1,34 @@
+#!/usr/bin/env bash
+
+# setup some vars
+facing=1 # 1/2/3/4 = N/E/S/W = +y/+x/-y/-x
+IFS=", " read -ra puzzle
+x=0 y=0
+declare -A xy
+xy["0x0"]=1
+
+# step through the puzzle
+for (( i=0; i<${#puzzle[@]}; i++ )); do
+
+    # change direction
+    case "${puzzle[$i]::1}" in
+        L) (( facing = (facing-1) < 1 ? 4 : (facing-1) )) ;;
+        R) (( facing = (facing+1) > 4 ? 1 : (facing+1) )) ;;
+    esac
+
+    # walk the distance one step at a time
+    for (( s=0; s<${puzzle[$i]:1}; s++ )); do
+
+        # add/subtract 1 to direction
+        if (( facing % 2 == 0 )); then (( x += ( facing == 4 ) ? -1 : 1 ))
+                                  else (( y += ( facing == 3 ) ? -1 : 1 ))
+        fi
+
+        # check if its been visited
+        [[ -v xy["${x}x$y"] ]] && break 2
+        xy["${x}x$y"]=1
+    done
+done
+
+# Display the final distance
+echo "Distance away: $(( ${x#-} + ${y#-} ))"

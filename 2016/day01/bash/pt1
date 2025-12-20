@@ -1,0 +1,25 @@
+#!/usr/bin/env bash
+
+# setup some vars
+facing=1 # 1/2/3/4 = N/E/S/W = +y/+x/-y/-x
+IFS=", " read -ra puzzle
+x=0 y=0
+
+# step through the puzzle
+for (( i=0; i<${#puzzle[@]}; i++ )); do
+
+    # change direction
+    case "${puzzle[$i]::1}" in
+        L) (( facing = (facing-1) < 1 ? 4 : (facing-1) )) ;;
+        R) (( facing = (facing+1) > 4 ? 1 : (facing+1) )) ;;
+    esac
+
+
+    # add amount to direction
+    if (( facing % 2 == 0 )); then (( x += ( facing == 4 ) ? "-${puzzle[$i]:1}" : ${puzzle[$i]:1} ))
+                              else (( y += ( facing == 3 ) ? "-${puzzle[$i]:1}" : ${puzzle[$i]:1} ))
+    fi
+done
+
+# Display the final distance
+echo "Distance away: $(( ${x#-} + ${y#-} ))"
