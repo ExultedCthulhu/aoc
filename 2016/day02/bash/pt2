@@ -1,0 +1,35 @@
+#!/usr/bin/env bash
+
+# setup the keypad
+declare -A keypad
+y=0
+while IFS= read -r keyline; do
+    for (( x=0; x<${#keyline}; x+=2 )); do
+        char="${keyline:x:1}"
+        [[ "$char" == " " ]] && continue
+        keypad["$((x/2))x$y"]="$char"
+    done
+    ((y++))
+done < keypad
+
+# setup some vars
+combination=""
+x=0 y=2
+
+# read puzzle from stdin
+while read -rn 1 puzzle; do
+
+    # store the keypad number on newlines
+    if [[ -z "$puzzle" ]]
+        then combination+=${keypad["${x}x$y"]}; continue; fi
+
+    case "$puzzle" in
+        U) [[ -v keypad["${x}x$((y-1))"] ]] && ((y--)) ;;
+        D) [[ -v keypad["${x}x$((y+1))"] ]] && ((y++)) ;;
+        L) [[ -v keypad["$((x-1))x$y"] ]] && ((x--)) ;;
+        R) [[ -v keypad["$((x+1))x$y"] ]] && ((x++)) ;;
+    esac
+done
+
+# display final combination
+echo "Combination: $combination"

@@ -1,0 +1,24 @@
+#!/usr/bin/env bash
+
+# setup some vars
+keypad="123456789" # not used, just here for visual reference
+combination=""
+x=1 y=1
+
+# read puzzle from stdin
+while read -rn 1 puzzle; do
+
+    # store the keypad number on newlines
+    if [[ -z "$puzzle" ]]
+        then combination+=$(( y*3+x+1 )); continue; fi
+
+    case "$puzzle" in
+        U) (( y>0 && y-- )) ;;
+        D) (( y<2 && y++ )) ;;
+        L) (( x>0 && x-- )) ;;
+        R) (( x<2 && x++ )) ;;
+    esac
+done
+
+# display final combination
+echo "Combination: $combination"
