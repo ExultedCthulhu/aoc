@@ -1,0 +1,41 @@
+#!/usr/bin/env bash
+
+# i needed help with echoing the calc array back in multiple lines
+# so i leaned on Gemini. while it pointed me to printf it also let
+# me know i could skip the arrays and string manipulation entirely
+# by simply using read multiple times, something i wasnt aware of
+# but sadly makes total sense in hindsight
+#
+# so this is me manually rewriting it around that concept and
+# leaving it as a separate vibe-coded version so i can reference
+# the technique in the future
+#
+#
+# wow, its *significantly* faster. 118ms down to 19ms
+
+
+
+# setup some vars
+valids=0
+
+processtriangle () {
+
+    if  (( $1 + $2 > $3 )) && \
+        (( $2 + $3 > $1 )) && \
+        (( $1 + $3 > $2 ))
+        then ((valids++))
+    fi
+}
+
+# read puzzle from stdin
+while   read a1 b1 c1 && \
+        read a2 b2 c2 && \
+        read a3 b3 c3; do
+
+            processtriangle "a1" "a2" "a3"
+            processtriangle "b1" "b2" "b3"
+            processtriangle "c1" "c2" "c3"
+done
+
+# output the total
+echo "Total valids: $valids"

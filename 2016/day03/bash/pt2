@@ -1,0 +1,31 @@
+#!/usr/bin/env bash
+
+# setup some vars
+valids=0
+x=1
+
+# read puzzle from stdin
+while read a b c; do
+
+    (( x>1 )) && comma=","
+    calc[1]+="$comma$a"
+    calc[2]+="$comma$b"
+    calc[3]+="$comma$c"
+
+    # If we've read three groups, process them
+    if (( x++ == 3 )); then
+        while IFS="," read d e f; do
+
+            if  (( (d+e) > f )) && \
+                (( (e+f) > d )) && \
+                (( (f+d) > e )); then
+                    ((valids++))
+            fi
+        done < <(printf "%s\n" "${calc[@]}")
+        x=1
+        unset calc comma
+    fi    
+done
+
+# output the total
+echo "Total valids: $valids"

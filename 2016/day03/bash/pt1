@@ -1,0 +1,17 @@
+#!/usr/bin/env bash
+
+# setup some vars
+valids=0
+
+# read puzzle from stdin
+while read a b c; do
+
+    if  (( (a + b) > c )) && \
+        (( (b + c) > a )) && \
+        (( (a + c) > b ))
+        then ((valids++))
+    fi
+done
+
+# output answer
+echo "Total valid: $valids"
