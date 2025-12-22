@@ -1,0 +1,46 @@
+#!/usr/bin/env bash
+
+# setup some vars
+validip=0
+
+# create a function to check for abba's
+checkabba () {
+
+    local puzline="$1"
+    local len="${#puzline}"
+    local i
+
+    for (( i=0; i<len-3; i++ )); do
+
+        if  [[ "${puzline:i:1}" == "${puzline:i+3:1}" ]] && \
+            [[ "${puzline:i+1:1}" == "${puzline:i+2:1}" ]] && \
+            [[ "${puzline:i:1}" != "${puzline:i+1:1}" ]]
+            then return 0
+        fi
+    done
+    return 1
+}
+
+# loop over each ip from stdin
+while read -r puzzle; do
+
+    # first check all the hypernet sequences
+    while [[ "$puzzle" =~ \[([a-z]+)\] ]]; do
+
+        if checkabba "${BASH_REMATCH[1]}"
+            then continue 2
+            else puzzle="${puzzle//\[${BASH_REMATCH[1]}\]/-}"
+        fi
+    done
+
+    # next check the remaining sequences
+    while read -r puzline; do
+
+        if checkabba "$puzline"
+            then ((validip++)) && continue 2
+        fi
+    done <<< "${puzzle//-/$'\n'}"
+done
+
+# output the total
+echo "Total valid ip's: $validip"
