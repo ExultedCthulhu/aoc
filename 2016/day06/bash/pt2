@@ -1,0 +1,16 @@
+#!/usr/bin/env bash
+
+# setup some vars
+file="$1"   # this script uses parameters instead of stdin
+len="$(( $(head -n 1 $1 | wc -c) - 1 ))"    # width of the puzzle
+code=""
+
+# get the most popular character and add it to the code
+for (( i=1; i<=len; i++ )); do
+
+    char="$(cut -c $i $1 | sort | uniq -c | sort | head -n 1)"
+    code+="${char: -1}"
+done
+
+# display the final code
+echo "Error-corrected code: $code"
