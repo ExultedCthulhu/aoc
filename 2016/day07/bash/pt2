@@ -1,0 +1,68 @@
+#!/usr/bin/env bash
+
+# setup some vars
+validip=0
+shopt -s extglob    # this is needed for removing hypernet sequences on ln53
+
+# create a function for ABA's
+checkaba() {
+
+    local string="$1"
+    local len="${#string}"
+    local i
+
+    for (( i=0; i<len-2; i++ )); do
+
+        if  [[ "${string:i:1}" == "${string:i+2:1}" ]] && \
+            [[ "${string:i:1}" != "${string:i+1:1}" ]]
+            then abas+=("${string:i:3}")
+        fi
+    done
+}
+
+# create a function for BAB's
+checkbab() {
+
+    local string="$1"
+    local len="${#string}"
+    local i aba
+
+    for (( i=0; i<len-2; i++ )); do
+
+        # break early if it doesnt fit the pattern
+        [[ "${string:i:1}" != "${string:i+2:1}" ]] && continue
+        # otherwise check each aba
+        for aba in "${abas[@]}"; do
+
+            if  [[ "${aba:1:1}" == "${string:i:1}" ]] && 
+                [[ "${aba::1}" == "${string:i+1:1}" ]]
+                then return 0
+            fi
+        done
+    done
+    return 1
+}
+
+# loop over each ip from stdin
+while read -r puzzle; do
+
+    # first we need to check for any ABA's
+    abas=()
+    while read -r nextaba; do
+        checkaba "$nextaba"
+    done <<< "${puzzle//\[*([a-z])\]/$'\n'}"
+
+    # skip loop if there are no ABA's
+    [[ "${#abas[@]}" == 0 ]] && continue
+
+    # next we check for BAB's
+    while [[ "$puzzle" =~ \[([a-z]+)\] ]]; do
+        if checkbab "${BASH_REMATCH[1]}"
+            then ((++validip)) && continue 2
+            else puzzle="${puzzle//\[${BASH_REMATCH[1]}\]/-}" 
+        fi
+    done
+done
+
+# output the total
+echo "Total ips with SSL: $validip"
