@@ -1,0 +1,96 @@
+#!/usr/bin/env bash
+
+# setup some vars
+x=0 y=0
+declare -A grid
+width=50
+height=6
+
+# setup some functions
+printgrid() { 
+    # useful for debugging other functions
+    local x y
+
+    for (( y=0; y<height; y++ )); do
+        for (( x=0; x<width; x++ )); do
+            echo -n "${grid[${x}x$y]:- }"
+        done
+        echo
+    done
+}
+
+recton() {
+    # turns on all pixels of rect
+    local x y
+
+    for (( y=0; y<$2; y++ )); do
+        for (( x=0; x<$1; x++ )); do
+            grid["${x}x$y"]=1
+        done
+    done
+}
+
+shiftright() {
+    # 'rotates' the entire row to the right
+    local x y="$1"
+    local amt="$2"
+
+    # first we copy the row from right to left, moving off the grid by amt
+    for (( x=(width+amt-1); x>=0; x-- )); do
+    
+        if [[ -v "grid[$((x-amt))x$y]" ]]
+            then grid["${x}x$y"]="${grid[$((x-amt))x$y]}"
+            else unset grid["${x}x$y"]
+        fi
+    done
+
+    # then we replace the missing shifted
+    # and remove the extra overhang
+    for (( x=0; x<amt; x++ )); do
+
+        if [[ -v "${grid[$((x+width))x$y]}" ]]; then
+            grid["${x}x$y"]="${grid[$((x+width))x$y]}"
+            unset grid["$((x+width))x$y"]
+        fi
+    done
+}
+
+shiftdown() {
+    # 'rotates' the entire column down
+    local x="$1" y
+    local amt="$2"
+
+    # first we copy the column from the bottom up, moving off the grid by amt
+    for (( y=(height+amt-1); y>=0; y-- )); do
+    
+        if [[ -v "grid[${x}x$((y-amt))]" ]]
+            then grid["${x}x$y"]="${grid[${x}x$((y-amt))]}"
+            else unset grid["${x}x$y"]
+        fi
+    done
+
+    # then we replace the missing shifted
+    # and remove the extra overhang
+    for (( y=0; y<amt; y++ )); do
+
+        if [[ -v "${grid[${x}x$((y+height))]}" ]]; then
+            grid["${x}x$y"]="${grid[${x}x$((y+height))]}"
+            unset grid["${x}x$((y+height))"]
+        fi
+    done
+}
+
+# read the instructions from stdin
+while read -r instruction; do
+
+    [[ "$instruction" =~ ^(rect|rotate r|rotate c)( |ow y=|olumn x=)([0-9]+)(x| by )([0-9]+)$ ]] && {
+        case "${BASH_REMATCH[1]}" in
+            rect)       recton "${BASH_REMATCH[3]}" "${BASH_REMATCH[5]}" ;;
+            "rotate r")   shiftright "${BASH_REMATCH[3]}" "${BASH_REMATCH[5]}" ;;
+            "rotate c")   shiftdown "${BASH_REMATCH[3]}" "${BASH_REMATCH[5]}" ;;
+        esac
+    }
+done
+
+# output the total lit
+echo "Total lit pixels: ${#grid[@]}"
