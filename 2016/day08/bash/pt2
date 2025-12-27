@@ -25,7 +25,7 @@ recton() {
 
     for (( y=0; y<$2; y++ )); do
         for (( x=0; x<$1; x++ )); do
-            grid["${x}x$y"]=1
+            grid["${x}x$y"]="#"
         done
     done
 }
@@ -48,7 +48,7 @@ shiftright() {
     # and remove the extra overhang
     for (( x=0; x<amt; x++ )); do
 
-        if [[ -v "${grid[$((x+width))x$y]}" ]]; then
+        if [[ -v "grid[$((x+width))x$y]" ]]; then
             grid["${x}x$y"]="${grid[$((x+width))x$y]}"
             unset grid["$((x+width))x$y"]
         fi
@@ -73,7 +73,7 @@ shiftdown() {
     # and remove the extra overhang
     for (( y=0; y<amt; y++ )); do
 
-        if [[ -v "${grid[${x}x$((y+height))]}" ]]; then
+        if [[ -v "grid[${x}x$((y+height))]" ]]; then
             grid["${x}x$y"]="${grid[${x}x$((y+height))]}"
             unset grid["${x}x$((y+height))"]
         fi
