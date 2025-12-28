@@ -1,0 +1,38 @@
+#!/usr/bin/env bash
+
+# setup some vars
+# for single-line puzzles, this is so i can test multiple examples using this:
+# while read -r puzzle; do ./pt1 "$puzzle"; done < example 
+if [[ -z "$1" ]]
+    then read -r puzzle
+    else puzzle="$1"
+fi
+
+# loop over the puzzle to process each marker in order
+while [[ "$puzzle" =~ ^([^\(]*)\(([0-9]+)x([0-9]+)\)(.*)$ ]]; do
+
+    # before = ${BASH_REMATCH[1]}
+    # length = ${BASH_REMATCH[2]}
+    # loops  = ${BASH_REMATCH[3]}
+    # after  = ${BASH_REMATCH[4]}
+
+    # first setup the temp vars we'll need
+    stringtorepeat="${BASH_REMATCH[4]::${BASH_REMATCH[2]}}"
+    afterrepeat="${BASH_REMATCH[4]:${BASH_REMATCH[2]}}"
+    newstring=""
+
+    # then create the new string we'll insert
+    for (( i=0; i<${BASH_REMATCH[3]}; i++ ))
+        do newstring+="$stringtorepeat"
+    done
+
+    # sanitize the new string to prevent it from matching in future loops
+    newstring="${newstring//\(/\[}"
+    newstring="${newstring//\)/\]}"
+
+    # modify the puzzle with the new string
+    puzzle="${BASH_REMATCH[1]}$newstring$afterrepeat"
+done
+
+# output the final string length
+echo "Length: ${#puzzle}"

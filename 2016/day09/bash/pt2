@@ -1,0 +1,60 @@
+#!/usr/bin/env bash
+
+# i had to get a little llm-help with understanding what to do for this second part.
+# at first i thought i could just read it right-to-left but i was orders of magnitudes off.
+# i still dont see the puzzle instructions explaining this way but the llm pointed
+# out that the input is broken up into self-contained sections via the first marker
+# you come across and that each sub-marker wont reach beyond the current section. 
+# the examples dont even allude to this as the last one stops in the middle of a set.
+# i dont know how else i could have approached this without that info but once
+# that was clear i simply moved my main loop into a recursive function and it worked.
+# though i had to localize the shit out of everything because i tried the newer 5.3 syntax
+# for non-forking command subsitution and each new func call would have overwritten the last. 
+# bash_rematch in particular would have been blown to smithereens since it cant be localized.
+
+
+# setup some vars
+# for single-line puzzles, this is so i can test multiple examples using this:
+# while read -r puzzle; do ./pt2 "$puzzle"; done < example2
+if [[ -z "$1" ]]
+    then read -r puzzle
+    else puzzle="$1"
+fi
+
+# move the code from my main loop into a recursive function
+processchunk() {
+
+    local chunk="$1"
+    local chunktotal=0
+
+    # loop over each marker inside the current chunk
+    while [[ "$chunk" =~ ^([^\(]*)\(([0-9]+)x([0-9]+)\)(.*)$ ]]; do
+
+        # before = ${BASH_REMATCH[1]}
+        # length = ${BASH_REMATCH[2]}
+        # loops  = ${BASH_REMATCH[3]}
+        # after  = ${BASH_REMATCH[4]}
+
+        # first setup the temp vars we'll need
+        local matches=("${BASH_REMATCH[@]}")
+        local stringtorepeat="${matches[4]::${matches[2]}}"
+        local afterrepeat="${matches[4]:${matches[2]}}"
+        
+        # just add the length of anything before the marker
+        ((chunktotal+=${#matches[1]}))
+
+        # process the chunk and add its length to the running total
+        local stringlen="${ processchunk "$stringtorepeat"; }"
+        (( chunktotal += ( ${matches[3]} * stringlen ) ))
+
+        # modify the chunk with whats left
+        chunk="$afterrepeat"
+    done
+
+    # add in any remaining bits and output the chunk total
+    ((chunktotal+=${#chunk}))
+    echo "$chunktotal"
+}
+
+# since we moved the loop into a function we just need to run it
+echo "Length: ${ processchunk "$puzzle"; }"
