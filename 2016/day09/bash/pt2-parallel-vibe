@@ -56,7 +56,7 @@ processchunk() {
             ) &
 
             # Concurrency gate
-            shellpids[$!]=1     # this has to be the very next command after the subshell spawn
+            shellpids[$!]=1     # capture the pid of the most recent subshell
             while (( ${#shellpids[@]} >= MAX_JOBS )); do
 
                 wait -n -p doneshell ${!shellpids[*]}
