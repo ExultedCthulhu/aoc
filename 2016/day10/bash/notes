@@ -1,0 +1,25 @@
+..day10/bash $ grep -vP "^bot \d+ gives low to (bot|output) \d+ and high to bot \d+" input
+                value 2 goes to bot 156
+                value 53 goes to bot 19
+                value 17 goes to bot 48
+                value 19 goes to bot 114
+                value 41 goes to bot 204
+                bot 176 gives low to output 18 and high to output 3
+                value 37 goes to bot 62
+                value 47 goes to bot 74
+                value 29 goes to bot 75
+                value 13 goes to bot 84
+                value 3 goes to bot 154
+                value 11 goes to bot 174
+                value 23 goes to bot 153
+                value 31 goes to bot 37
+                value 7 goes to bot 143
+                value 67 goes to bot 56
+                value 71 goes to bot 50
+                value 5 goes to bot 48
+                value 59 goes to bot 177
+                value 73 goes to bot 58
+                value 43 goes to bot 195
+                value 61 goes to bot 205
+..day10/bash $ grep -vP "^(bot \d+ gives low to (bot|output) \d+ and high to (bot|output) \d+|value \d+ goes to bot \d+)$" input
+..day10/bash $ 
