@@ -12,17 +12,19 @@ if [[ -z "$1" ]]
     else puzzle="$1"
 fi
 MAX_JOBS=6
+shopt -s nullglob   # used for reading temp files at the end in case there were none
 export TMPDIR=/dev/shm  # this is for my WSL instance where /tmp is disk-based instead of ram
 TEMP_DIR="$(mktemp -d)"
 trap 'rm -rf "$TEMP_DIR"' EXIT   # cleanup the temp directory when the script exits
 grandtotal=0
+declare -A shellpids    # used for the concurency gate
 
 # this is the part that you need to develop as it all depends on the puzzle and script design. 
 # Some puzzles you may want a worker per line or however it works out. Here i've chosen to
 # only spawn workers for each major chunk and leave the subdivision to regular processing just
 # so that i can get a handle on the concept. this puzzle doesnt need it, it's just for learning.
 
-# create a loop that processes each chunk
+# create a recursive function that processes each chunk
 processchunk() {
 
     local chunk="$1"
@@ -47,17 +49,24 @@ processchunk() {
 
         # process the chunk 
         if (( depth == 0 )); then
-            # spawn worker subshells for main chunks only
-            local $fileout="$TEMP_DIR/job_$((job_id++)).out"
+            # only spawn subshells for main chunks
+            local fileout="$TEMP_DIR/job_$((job_id++)).out"
             (   local inner="${ processchunk "$stringtorepeat" 1; }"
                 echo $(( "${matches[3]}" * inner )) > "$fileout"
             ) &
 
             # Concurrency gate
-            if (( ++activejobs >= MAX_JOBS )); then
-                wait -n     # wait for a worker to finish
-                ((activejobs--))
-            fi
+            shellpids[$!]=1     # this has to be the very next command after the subshell spawn
+            while (( ${#shellpids[@]} >= MAX_JOBS )); do
+
+                wait -n -p doneshell ${!shellpids[*]}
+                unset "shellpids[$doneshell]"
+            done
+
+            # Aternative concurrency gate at the cost of time/forking
+            # if (( $(jobs -pr | wc -l) >= MAX_JOBS )); then
+            #     wait -n     # wait for a worker to finish
+            # fi
         else
             # add its length to the running total
             local stringlen="${ processchunk "$stringtorepeat" 1; }"
@@ -73,43 +82,15 @@ processchunk() {
     echo "$chunktotal"
 }
 
+# kick off the process with the puzzle input
+(( grandtotal += ${ processchunk "$puzzle"; } ))
 
-
-# Same parse shape as your regex loop, but:
-# - we add "before" immediately
-# - we either spawn or compute inline for each marker segment
-while [[ "$chunk" =~ ^([^\(]*)\(([0-9]+)x([0-9]+)\)(.*)$ ]]; do
-    local matches=("${BASH_REMATCH[@]}")
-    local A="${matches[2]}"
-    local B="${matches[3]}"
-
-    local stringtorepeat="${matches[4]::A}"
-    local afterrepeat="${matches[4]:A}"
-
-    (( grandtotal += ${#matches[1]} ))
-
-    local fileout="$TEMP_DIR/job_$((job_id++)).out"
-    spawn_worker "$stringtorepeat" "$B" "$fileout"
-
-    chunk="$afterrepeat"
-done
-
-# tail literal content
-(( grandtotal += ${#chunk} ))
-
-# finish remaining workers
+# wait until all subshells have finished processing
 wait
 
-# Reduce
-local f v
-for f in "${outfiles[@]}"; do
-    if [[ -s "$f" ]]; then
-        v="$(<"$f")"
-        (( grandtotal += v ))
-    else
-        echo "ERROR: missing/empty worker output: $f" >&2
-        return 1
-    fi
+# add in the totals from any subshells
+for file in $TEMP_DIR/*; do
+    (( grandtotal += $(<"$file") ))
 done
 
 echo "Length: $grandtotal"
