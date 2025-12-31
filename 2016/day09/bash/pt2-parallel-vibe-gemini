@@ -1,0 +1,131 @@
+#!/usr/bin/env bash
+
+
+# this is solely to observe and learn the art of running jobs in parallel
+# i asked google gemini to take my pt2 script and run it in parallel.
+# i know it doesnt need it, the original only takes 100ms to run,
+# this is purely for educational purposes for some future puzzle
+
+
+# 1. Setup Input
+if [[ -z "$1" ]]; then read -r puzzle; else puzzle="$1"; fi
+
+# 2. Setup Temp Directory for Parallel Results
+TMP_DIR=$(mktemp -d)
+trap 'rm -rf "$TMP_DIR"' EXIT
+
+# 3. Define the limit
+MAX_JOBS=6
+
+# --- THE WORKER FUNCTION ---
+# This is your optimized, non-forking Bash 5.3 recursive logic.
+# It runs purely in memory and is very fast.
+calc_fast() {
+    local chunk="$1"
+    local total=0
+
+    while [[ "$chunk" =~ ^([^\(]*)\(([0-9]+)x([0-9]+)\)(.*)$ ]]; do
+        local matches=("${BASH_REMATCH[@]}")
+        local before="${matches[1]}"
+        local len="${matches[2]}"
+        local repeat="${matches[3]}"
+        local remainder="${matches[4]}"
+
+        local stringtorepeat="${remainder::${len}}"
+        local afterrepeat="${remainder:${len}}"
+
+        # Add the 'before' length
+        (( total += ${#before} ))
+
+        # RECURSE: Calculate length of the sub-section
+        local sublen="${ calc_fast "$stringtorepeat"; }"
+        
+        # Add the multiplied length
+        (( total += ( sublen * repeat ) ))
+
+        chunk="$afterrepeat"
+    done
+
+    (( total += ${#chunk} ))
+    echo "$total"
+}
+
+# --- THE MANAGER FUNCTION ---
+# This handles ONLY the top-level string.
+# It decides whether to do the work locally or offload to a worker.
+solve_parallel() {
+    local chunk="$1"
+    local main_total=0
+    
+    # We use a job list to keep track of PIDs we spawned
+    local job_pids=()
+
+    while [[ "$chunk" =~ ^([^\(]*)\(([0-9]+)x([0-9]+)\)(.*)$ ]]; do
+        local matches=("${BASH_REMATCH[@]}")
+        local before="${matches[1]}"
+        local len="${matches[2]}"
+        local repeat="${matches[3]}"
+        local remainder="${matches[4]}"
+
+        local stringtorepeat="${remainder::${len}}"
+        local afterrepeat="${remainder:${len}}"
+
+        # 1. Add the synchronous length (the text before the marker)
+        (( main_total += ${#before} ))
+
+        # 2. Check Job Slots
+        # 'jobs -rp' lists running PIDs. 'wc -l' counts them.
+        local current_jobs=$(jobs -rp | wc -l)
+
+        if [[ $current_jobs -lt $MAX_JOBS ]]; then
+            # --- PARALLEL PATH ---
+            # Spawn a background subshell
+            (
+                # Run the fast worker
+                sub_result="${ calc_fast "$stringtorepeat"; }"
+                # Do the multiplication here
+                calculated_chunk=$(( sub_result * repeat ))
+                # Write to a file named after this background PID
+                echo "$calculated_chunk" > "$TMP_DIR/$BASHPID"
+            ) & 
+            
+            # Save the PID of the job we just launched ($!)
+            job_pids+=("$!")
+            
+        else
+            # --- FALLBACK PATH ---
+            # If slots are full, run it in the main thread (blocking)
+            # wait -n could be used here to wait for a slot, but let's keep it simple:
+            # just do the work ourselves if workers are busy.
+            local sub_result="${ calc_fast "$stringtorepeat"; }"
+            (( main_total += (sub_result * repeat) ))
+        fi
+
+        chunk="$afterrepeat"
+    done
+
+    # Add any remaining tail text
+    (( main_total += ${#chunk} ))
+
+    # 3. SYNCHRONIZATION BARRIER
+    # Wait for all background jobs to finish
+    wait
+
+    # 4. REDUCE (Aggregate Results)
+    # Loop through the PIDs we tracked and read their output files
+    for pid in "${job_pids[@]}"; do
+        if [[ -f "$TMP_DIR/$pid" ]]; then
+            val=$(<"$TMP_DIR/$pid")
+            (( main_total += val ))
+        fi
+    done
+
+    echo "$main_total"
+}
+
+# --- EXECUTION ---
+echo "Starting Parallel Processing (Max $MAX_JOBS threads)..."
+
+# Note: We call this normally, NOT inside $() command substitution
+# effectively keeping it in the main process so 'wait' works correctly.
+solve_parallel "$puzzle"

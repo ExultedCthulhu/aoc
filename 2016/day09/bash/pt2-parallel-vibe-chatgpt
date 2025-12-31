@@ -1,0 +1,125 @@
+#!/usr/bin/env bash
+
+
+# this is solely to observe and learn the art of running jobs in parallel
+# i asked chatgpt to take my pt2 script and run it in parallel.
+# i know it doesnt need it, the original only takes 100ms to run,
+# this is purely for educational purposes for some future puzzle
+
+
+set -u
+# Concurrency knobs
+MAX_JOBS="${MAX_JOBS:-6}"            # max parallel workers
+MIN_PAR_LEN="${MIN_PAR_LEN:-0}"      # only parallelize segments with A >= this (0 = always)
+
+# Temp storage for worker outputs
+export TMPDIR=/dev/shm               # this is for my WSL instance where /tmp is disk-based, not ram
+TMP_DIR="$(mktemp -d)"
+trap 'rm -rf "$TMP_DIR"' EXIT
+
+# --- Your original serial recursive core (unchanged in spirit) ---
+processchunk() {
+    local chunk="$1"
+    local chunktotal=0
+
+    while [[ "$chunk" =~ ^([^\(]*)\(([0-9]+)x([0-9]+)\)(.*)$ ]]; do
+        local matches=("${BASH_REMATCH[@]}")   # snapshot BASH_REMATCH immediately
+        local stringtorepeat="${matches[4]::${matches[2]}}"
+        local afterrepeat="${matches[4]:${matches[2]}}"
+
+        (( chunktotal += ${#matches[1]} ))
+
+        local stringlen="${ processchunk "$stringtorepeat"; }"
+        (( chunktotal += ( ${matches[3]} * stringlen ) ))
+
+        chunk="$afterrepeat"
+    done
+
+    (( chunktotal += ${#chunk} ))
+    echo "$chunktotal"
+}
+
+# --- Parallelize ONLY the top-level marker segments ---
+processchunk_parallel_top() {
+    local chunk="$1"
+    local base_total=0
+
+    local -a outfiles=()
+    local active=0
+    local job_id=0
+
+    # Spawn helper: computes (loops * processchunk(segment)) and writes integer to outfile
+    spawn_worker() {
+        local seg="$1"
+        local loops="$2"
+        local outfile="$3"
+
+        (
+            # worker subshell
+            local inner="${ processchunk "$seg"; }"
+            echo $(( loops * inner )) > "$outfile"
+        ) &
+
+        outfiles+=("$outfile")
+        (( active += 1 ))
+
+        # Concurrency gate
+        if (( active >= MAX_JOBS )); then
+            wait -n     # wait for any one worker
+            (( active -= 1 ))
+        fi
+    }
+
+    # Same parse shape as your regex loop, but:
+    # - we add "before" immediately
+    # - we either spawn or compute inline for each marker segment
+    while [[ "$chunk" =~ ^([^\(]*)\(([0-9]+)x([0-9]+)\)(.*)$ ]]; do
+        local matches=("${BASH_REMATCH[@]}")
+        local A="${matches[2]}"
+        local B="${matches[3]}"
+
+        local stringtorepeat="${matches[4]::A}"
+        local afterrepeat="${matches[4]:A}"
+
+        (( base_total += ${#matches[1]} ))
+
+        if (( MAX_JOBS > 1 && A >= MIN_PAR_LEN )); then
+            local outfile="$TMP_DIR/job_$((job_id++)).out"
+            spawn_worker "$stringtorepeat" "$B" "$outfile"
+        else
+            local inner="${ processchunk "$stringtorepeat"; }"
+            (( base_total += B * inner ))
+        fi
+
+        chunk="$afterrepeat"
+    done
+
+    # tail literal content
+    (( base_total += ${#chunk} ))
+
+    # finish remaining workers
+    wait
+
+    # Reduce
+    local f v
+    for f in "${outfiles[@]}"; do
+        if [[ -s "$f" ]]; then
+            v="$(<"$f")"
+            (( base_total += v ))
+        else
+            echo "ERROR: missing/empty worker output: $f" >&2
+            return 1
+        fi
+    done
+
+    echo "$base_total"
+}
+
+# --- Input handling ---
+if [[ -z "${1:-}" ]]; then
+    IFS= read -r puzzle
+else
+    puzzle="$1"
+fi
+
+echo "Length: ${ processchunk_parallel_top "$puzzle"; }"

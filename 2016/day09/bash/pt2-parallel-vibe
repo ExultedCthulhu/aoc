@@ -1,0 +1,115 @@
+#!/usr/bin/env bash
+
+
+# this is my attempted rewrite of chatgpt's parallelization of my pt2 script
+
+
+# setup some vars
+# for single-line puzzles, this is so i can test multiple examples using this:
+# while read -r puzzle; do ./pt2 "$puzzle"; done < example2
+if [[ -z "$1" ]]
+    then read -r puzzle
+    else puzzle="$1"
+fi
+MAX_JOBS=6
+export TMPDIR=/dev/shm  # this is for my WSL instance where /tmp is disk-based instead of ram
+TEMP_DIR="$(mktemp -d)"
+trap 'rm -rf "$TEMP_DIR"' EXIT   # cleanup the temp directory when the script exits
+grandtotal=0
+
+# this is the part that you need to develop as it all depends on the puzzle and script design. 
+# Some puzzles you may want a worker per line or however it works out. Here i've chosen to
+# only spawn workers for each major chunk and leave the subdivision to regular processing just
+# so that i can get a handle on the concept. this puzzle doesnt need it, it's just for learning.
+
+# create a loop that processes each chunk
+processchunk() {
+
+    local chunk="$1"
+    local chunktotal=0
+    local depth="${2:-0}"
+
+    # loop over each marker inside the current chunk
+    while [[ "$chunk" =~ ^([^\(]*)\(([0-9]+)x([0-9]+)\)(.*)$ ]]; do
+
+        # before = ${BASH_REMATCH[1]}
+        # length = ${BASH_REMATCH[2]}
+        # loops  = ${BASH_REMATCH[3]}
+        # after  = ${BASH_REMATCH[4]}
+
+        # first setup the temp vars we'll need
+        local matches=("${BASH_REMATCH[@]}")
+        local stringtorepeat="${matches[4]::${matches[2]}}"
+        local afterrepeat="${matches[4]:${matches[2]}}"
+        
+        # just add the length of anything before the marker
+        ((chunktotal+=${#matches[1]}))
+
+        # process the chunk 
+        if (( depth == 0 )); then
+            # spawn worker subshells for main chunks only
+            local $fileout="$TEMP_DIR/job_$((job_id++)).out"
+            (   local inner="${ processchunk "$stringtorepeat" 1; }"
+                echo $(( "${matches[3]}" * inner )) > "$fileout"
+            ) &
+
+            # Concurrency gate
+            if (( ++activejobs >= MAX_JOBS )); then
+                wait -n     # wait for a worker to finish
+                ((activejobs--))
+            fi
+        else
+            # add its length to the running total
+            local stringlen="${ processchunk "$stringtorepeat" 1; }"
+            (( chunktotal += ( ${matches[3]} * stringlen ) ))
+        fi
+
+        # modify the chunk with whats left
+        chunk="$afterrepeat"
+    done
+
+    # add in any remaining bits and output the chunk total
+    ((chunktotal+=${#chunk}))
+    echo "$chunktotal"
+}
+
+
+
+# Same parse shape as your regex loop, but:
+# - we add "before" immediately
+# - we either spawn or compute inline for each marker segment
+while [[ "$chunk" =~ ^([^\(]*)\(([0-9]+)x([0-9]+)\)(.*)$ ]]; do
+    local matches=("${BASH_REMATCH[@]}")
+    local A="${matches[2]}"
+    local B="${matches[3]}"
+
+    local stringtorepeat="${matches[4]::A}"
+    local afterrepeat="${matches[4]:A}"
+
+    (( grandtotal += ${#matches[1]} ))
+
+    local fileout="$TEMP_DIR/job_$((job_id++)).out"
+    spawn_worker "$stringtorepeat" "$B" "$fileout"
+
+    chunk="$afterrepeat"
+done
+
+# tail literal content
+(( grandtotal += ${#chunk} ))
+
+# finish remaining workers
+wait
+
+# Reduce
+local f v
+for f in "${outfiles[@]}"; do
+    if [[ -s "$f" ]]; then
+        v="$(<"$f")"
+        (( grandtotal += v ))
+    else
+        echo "ERROR: missing/empty worker output: $f" >&2
+        return 1
+    fi
+done
+
+echo "Length: $grandtotal"
