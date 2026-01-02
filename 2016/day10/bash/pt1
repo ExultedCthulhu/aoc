@@ -1,0 +1,97 @@
+#!/usr/bin/env bash
+
+# setup some vars
+puzzlefile="$1"     # use a filename as parameter instead of stdin
+declare -A bots
+declare -A instructions
+
+# create a function to add to bots
+addtobot() {
+
+    local receiver="$1"
+    local value="$2"
+    [[ "$3" == "output" ]] && receiver="output$1"   # we're just gonna be lazy and store the output trays in the bots array
+    local giver="$4"
+
+    # first remove the value from the giver, if any
+    [[ -n "$giver" ]] && removefrombot "$giver" "$value"
+
+    # if receiver exists, add the value and give away the chips
+    if [[ -v "bots[$receiver]" ]]; then
+        bots[$receiver]+=",$value"
+        [[ "$3" == "bot" ]] && botgive "$receiver"
+    else
+        bots[$receiver]="$value"
+    fi
+}
+
+# create a funciton to remove from bots
+removefrombot() {
+
+    local botnum="$1"
+    local value="$2"
+
+    # if it has multiple values, just leave the remaining one
+    if [[ "${bots[$botnum]}" =~ , ]]; then
+        local val1="${bots[$botnum]%,*}"
+        local val2="${bots[$botnum]#*,}"
+        
+        if [[ "$value" == "$val1" ]]
+            then bots[$botnum]="$val2"
+            else bots[$botnum]="$val1"
+        fi
+    else
+        # otherwise unset it
+        unset "bots[$botnum]"
+    fi
+}
+
+# create a function to process bots giving away chips
+botgive() {
+
+    # first get the vars we'll need for the process
+    local giver="$1"
+    local lowtype lowrec hightype highrec
+    IFS=' ' read -r lowtype lowrec hightype highrec <<< "${instructions[$giver]}"
+    local val1="${bots[$giver]%,*}"
+    local val2="${bots[$giver]#*,}"
+
+    # check if we found the exit criteria
+    if [[ ("$val1" == "17" && "$val2" == "61") || \
+          ("$val1" == "61" && "$val2" == "17") ]]; then
+            echo "Bot $giver set to process 17 & 61"
+            exit
+    fi
+
+    # next test which is higher and lower
+    if (( val1 < val2 )); then
+
+        addtobot "$lowrec" "$val1" "$lowtype" "$giver"
+        addtobot "$highrec" "$val2" "$hightype" "$giver"
+    else
+
+        addtobot "$lowrec" "$val2" "$lowtype" "$giver"
+        addtobot "$highrec" "$val1" "$hightype" "$giver"
+    fi
+}
+
+
+# first we need to read in the instructions
+echo "Reading instructions.."
+while read -r instruction; do
+
+    regex='^bot ([0-9]+) gives low to (bot|output) ([0-9]+) and high to (bot|output) ([0-9]+)$'
+    [[ "$instruction" =~ $regex ]]
+
+    instructions["${BASH_REMATCH[1]}"]="${BASH_REMATCH[*]:2}"
+done < <(grep -P "^bot" "$puzzlefile")
+
+# then run over the starting values
+echo "Initializing values.."
+while read -r initval; do
+
+    regex='^value ([0-9]+) goes to bot ([0-9]+)$'
+    [[ "$initval" =~ $regex ]]
+
+    addtobot "${BASH_REMATCH[2]}" "${BASH_REMATCH[1]}" "bot"
+done < <(grep -P "^value" "$puzzlefile")
