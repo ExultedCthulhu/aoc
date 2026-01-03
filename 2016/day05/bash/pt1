@@ -1,0 +1,45 @@
+#!/usr/bin/env bash
+
+
+# setup some vars
+puzzle="$1"     # we're just going to use parameter 1 for puzzle input
+maxjobs=8
+shopt -s nullglob   # used for reading temp files in case there were none
+export TMPDIR=/dev/shm  # this is for my WSL instance where /tmp is disk-based instead of ram
+TEMP_DIR="$(mktemp -d)"
+trap 'rm -rf "$TEMP_DIR"' EXIT   # cleanup the temp directory when the script exits
+declare -A shellpids    # used for the concurency gate
+iteration=0
+maxits=10000000
+increments=50000
+pwlength=8
+
+# loop until a predetermined limit
+while (( iteration < maxits )); do
+
+    # this is the loop we will want to subshell
+    jobfile="$TEMP_DIR/job_$iteration.tmp"
+    jobmax=$((iteration+increments))
+    for (( i=iteration; i<jobmax; i++ )); do
+
+        echo -n "$input$i" > "$jobfile"
+        md5="${ md5sum "$jobfile"; }"
+        md5="${md5%% *}"
+        
+        # transform to hex & check
+        # if match save char to temp/sol_iteration
+
+        
+    done    
+    # end subshell
+
+    # add in some logic to check files every once in a while for the 
+    # number of files >= pwlength
+
+    ((iteration+=increments))
+done
+
+
+
+# sort output files, concat and display them
+ 
