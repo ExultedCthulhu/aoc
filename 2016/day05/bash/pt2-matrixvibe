@@ -1,0 +1,157 @@
+#!/usr/bin/env bash
+
+# l asked an llm to evaluate my pt2 script (after i already found the solution) and it suggested a fun feature: 
+# a hacker-style decryption message that shows which parts of the password have been 'locked in' instead of staring
+# at an empty terminal for a half hour. it actually came out really neat so im keeping it as-is so that if i want to
+# impliment it into some future project i can reference it. the main part is writing to stderr without a newline, 
+# then starting from the beginning on the next loop. and fork the display logic to a subshell to not tie up the main script.
+# 
+# note: the checksolutions_hollywood and run_cinematic_display functions use different display formats because llm's
+# are just fancy word guessers so it causes some anomolies and needs to be cleaned up, but this is just for reference.
+
+
+
+# setup some vars
+puzzle="$1"     # puzzle input is small so we're just going to use parameter 1
+maxjobs=16
+shopt -s nullglob   # used for reading temp files in case there were none
+export TMPDIR=/dev/shm  # this is for my WSL instance where /tmp is disk-based instead of ram
+TEMP_DIR="$(mktemp -d)"
+trap 'kill $DISPLAY_PID 0; rm -rf "$TEMP_DIR"' EXIT   # cleanup the temp directory when the script exits
+trap 'kill 0; exit' SIGINT       # kill subshells and erase temp dir if CTRL-C is pressed
+declare -A shellpids    # used for the concurency gate
+iteration=0
+maxits=100000000
+increments=50000
+pwlength=8
+
+# Set up some colors for the effect
+GREEN='\033[0;32m'
+GREY='\033[0;90m'
+NC='\033[0m' # No Color
+
+# Helper to get a random hex char for the visual effect
+get_random_hex() {
+    printf "%x" $((RANDOM%16))
+}
+
+checksolutions_hollywood() {
+    local solfiles=("$TEMP_DIR"/sol_*)
+    local sfile sdata index char pos
+    local pwcheck=()
+    local display_str=""
+
+    # 1. Load the current knowns (same logic as yours)
+    for sfile in "${solfiles[@]}"; do
+        sdata=$(<"$sfile")
+        if [[ ! -v "pwcheck[${sdata::1}]" ]]; then
+            pwcheck[${sdata::1}]="${sdata:1}"
+        else
+            rm "$sfile" # Burn duplicates
+        fi
+    done
+
+    # 2. Build the visual string
+    for (( pos=0; pos<pwlength; pos++ )); do
+        if [[ -v "pwcheck[$pos]" ]]; then
+            # We found this one! Show it in GREEN
+            display_str+="${GREEN}${pwcheck[$pos]}${NC}"
+        else
+            # Haven't found it yet, show a random flickering character
+            display_str+="$(get_random_hex)"
+        fi
+    done
+
+    # 3. Print to stderr so we see it immediately (and overwrite the line)
+    # \r goes to start of line. \033[K clears the rest of the line.
+    printf "\r[DECRYPTING] %b   (Iteration: %d)" "$display_str" "$iteration" >&2
+
+    # 4. Check if done
+    if (( ${#pwcheck[@]} == pwlength )); then
+        IFS=''
+        password="${pwcheck[*]}"
+        echo "" # Lock in the final newline
+        return 0
+    else
+        return 1
+    fi
+}
+
+# --- UPDATED LOOP ---
+
+echo "Starting decryption..."
+
+# This runs in the background and just keeps the screen "alive"
+run_cinematic_display() {
+    # Keep running until the parent script kills this process
+    while true; do
+        local solfiles=("$TEMP_DIR"/sol_*)
+        local pwcheck=()
+        local display_str=""
+        
+        # Load knowns from temp dir
+        for sfile in "${solfiles[@]}"; do
+            sdata=$(<"$sfile")
+            # If position is 0-7 and not already set
+            if [[ "${sdata::1}" =~ [0-7] && ! -v "pwcheck[${sdata::1}]" ]]; then
+                pwcheck[${sdata::1}]="${sdata:1}"
+            fi
+        done
+
+        # Build string with Greys and Greens
+        for (( pos=0; pos<8; pos++ )); do
+            if [[ -v "pwcheck[$pos]" ]]; then
+                display_str+="${GREEN}${pwcheck[$pos]}${NC}"
+            else
+                display_str+="${GREY}$(printf "%x" $((RANDOM%16)))${NC}"
+            fi
+        done
+
+        # Update the screen
+        printf "\r[STATUS: DECRYPTING...]  Password: %b" "$display_str" >&2
+        
+        # Adjust sleep for "flicker speed" (0.1 is smooth, 0.05 is frantic)
+        sleep 0.1
+    done
+}
+
+# --- LAUNCH ---
+run_cinematic_display &
+DISPLAY_PID=$!
+
+while (( iteration < maxits )); do
+    ((loopcount++))
+
+    # Spawn workers (Your existing logic)
+    (   jobfile="$TEMP_DIR/job_$iteration.tmp"
+        jobmax=$((iteration+increments))
+        for (( i=iteration; i<jobmax; i++ )); do
+            echo -n "$puzzle$i" > "$jobfile"
+            md5="${ md5sum "$jobfile"; }"
+            if [[ "$md5" =~ ^00000[0-7] ]]; then
+                printf -v curit "%0${#maxits}d" "$i"
+                echo -n "${md5:5:2}" > "$TEMP_DIR/sol_$curit.tmp"
+            fi
+        done    
+    ) &
+    shellpids[$!]=1 
+
+    # --- THE HOLLYWOOD UPDATE ---
+    # Run the check more often to make the animation look cool
+    # (Checking files is cheap compared to hashing)
+    if checksolutions_hollywood; then
+        break
+    fi
+
+    # Concurrency gate (Your existing logic)
+    while (( ${#shellpids[@]} >= maxjobs )); do
+        wait -n -p doneshell ${!shellpids[*]}
+        unset "shellpids[$doneshell]"
+    done
+
+    ((iteration+=increments))
+done
+
+wait
+checksolutions_hollywood # Final render
+echo "Password acquired: $password"
