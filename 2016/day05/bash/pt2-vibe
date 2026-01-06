@@ -1,0 +1,105 @@
+#!/usr/bin/env bash
+
+# this version is labeled vibe since i submitted my final pt2 script to an llm for analysis after i solved it
+# and it informed me that md5sum can actually process multiple files at once. Since that would *drastically*
+# cut down on the number of exec's i would need from tens of millions to hundreds, i worked with it to
+# use the new pipe method through find and xargs and it cut the processing time from 34 minutes to 3. wow. 
+
+
+# original note about the temp files:
+# in trying to find the absolute fastest approach for millions of md5 iterations
+# i found that *on my systems* a ram-based temp file outperformed piping the data.
+# while it took me 34 minutes to find the solution, you should check
+# that this approach works best for your system first.
+
+# setup some vars
+puzzle="$1"     # puzzle input is small so we're just going to use parameter 1
+maxjobs=12
+shopt -s nullglob   # used for reading temp files in case there were none
+export TMPDIR=/dev/shm  # this is for my WSL instance where /tmp is disk-based instead of ram
+TEMP_DIR="$(mktemp -d)"
+trap 'rm -rf "$TEMP_DIR"' EXIT   # cleanup the temp directory when the script exits
+trap 'kill 0; exit' SIGINT       # kill subshells and erase temp dir if CTRL-C is pressed
+declare -A shellpids    # used for the concurency gate
+iteration=0
+maxits=100000000
+increments=40000
+pwlength=8
+
+# create a function to check the solution
+checksolutions() {
+
+    local solfiles=("$TEMP_DIR"/sol_*)
+    local sfile sdata
+    local pwcheck=()
+
+    (( ${#solfiles[@]} < pwlength )) && return 1    # fast exit when not enough files
+
+    # process each solution file. 
+    for sfile in "${solfiles[@]}"; do
+
+        sdata=$(<"$sfile")
+        if [[ ! -v "pwcheck[${sdata::1}]" ]]
+            then pwcheck[${sdata::1}]="${sdata:1}"
+            else rm "$sfile"
+        fi
+    done
+
+    # check if we found a password
+    if (( ${#pwcheck[@]} == pwlength )); then
+
+        IFS=''
+        password="${pwcheck[*]}"
+        return 0
+    else return 1
+    fi
+}
+
+# loop until a preset limit
+while (( iteration < maxits )); do
+
+    ((loopcount++))     # used to determine when to check files
+
+    # create a subshell to loop over the next set of iterations
+    (
+        jobmax=$((iteration+increments))
+        batchdir="$TEMP_DIR/batch_$iteration"
+        mkdir -p "$batchdir"
+
+        for (( i=iteration; i<jobmax; i++ )); do
+
+            echo -n "$puzzle$i" > "$batchdir/$i"
+        done
+
+        # '-print0' and '-0' handle spaces/filenames safely (good habit)
+        find "$batchdir" -type f -print0 | xargs -0 md5sum | grep '^00000[0-7]' | while read -r md5 filename; do
+            
+            printf -v curit "%0${#maxits}d" "${filename##*/}"
+            echo -n "${md5:5:2}" > "$TEMP_DIR/sol_$curit.tmp"
+        done
+
+        # delete batch files
+        rm -rf "$batchdir"
+    ) &
+    shellpids[$!]=1     # capture the pid of the most recent subshell
+
+    # check for a solution once in a while
+    if (( loopcount % pwlength == 0 )) && checksolutions; then
+        break      # break the loop if we know the solution
+    fi
+
+    # Concurrency gate
+    while (( ${#shellpids[@]} >= maxjobs )); do
+
+        wait -n -p doneshell ${!shellpids[*]}
+        unset "shellpids[$doneshell]"
+    done
+
+    ((iteration+=increments))
+done
+
+wait            # wait for all subshells to finish
+checksolutions  # one last check to be certain it hasnt changed
+
+# output the password
+echo "Password: $password"
