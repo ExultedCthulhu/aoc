@@ -4,17 +4,18 @@
 # and it informed me that md5sum can actually process multiple files at once. Since that would *drastically*
 # cut down on the number of exec's i would need from tens of millions to hundreds, i worked with it to
 # use the new pipe method through find and xargs and it cut the processing time from 34 minutes to 3. wow. 
+# well, 3 min on my WSL instance and 47 seconds on native arch. the IO seems to be the bottleneck.
 
 
 # original note about the temp files:
 # in trying to find the absolute fastest approach for millions of md5 iterations
 # i found that *on my systems* a ram-based temp file outperformed piping the data.
 # while it took me 34 minutes to find the solution, you should check
-# that this approach works best for your system first.
+# that this approach works best for your system as it is IO and ram heavy.
 
 # setup some vars
-puzzle="$1"     # puzzle input is small so we're just going to use parameter 1
-maxjobs=12
+puzzle="${1:-ABC}"      # puzzle input is small so we're just going to use parameter 1
+maxjobs="${2:-12}"      # 12-14 was the sweet spot for my systems
 shopt -s nullglob   # used for reading temp files in case there were none
 export TMPDIR=/dev/shm  # this is for my WSL instance where /tmp is disk-based instead of ram
 TEMP_DIR="$(mktemp -d)"
@@ -23,7 +24,7 @@ trap 'kill 0; exit' SIGINT       # kill subshells and erase temp dir if CTRL-C i
 declare -A shellpids    # used for the concurency gate
 iteration=0
 maxits=100000000
-increments=40000
+increments=40000        # I tried to keep each batch under half a million
 pwlength=8
 
 # create a function to check the solution
@@ -61,36 +62,37 @@ while (( iteration < maxits )); do
     ((loopcount++))     # used to determine when to check files
 
     # create a subshell to loop over the next set of iterations
-    (
-        jobmax=$((iteration+increments))
+    (   jobmax=$((iteration+increments))
         batchdir="$TEMP_DIR/batch_$iteration"
         mkdir -p "$batchdir"
 
+        # create the files/hash input upfront
         for (( i=iteration; i<jobmax; i++ )); do
-
             echo -n "$puzzle$i" > "$batchdir/$i"
         done
 
-        # '-print0' and '-0' handle spaces/filenames safely (good habit)
+        # since md5sum can process multiple files and outputs 1 hash per line, we can use xargs to group
+        # them into as many hashes as possible and stream that through grep & read to only return valids
         find "$batchdir" -type f -print0 | xargs -0 md5sum | grep '^00000[0-7]' | while read -r md5 filename; do
             
             printf -v curit "%0${#maxits}d" "${filename##*/}"
             echo -n "${md5:5:2}" > "$TEMP_DIR/sol_$curit.tmp"
         done
 
-        # delete batch files
+        # delete batch files to free up ram
         rm -rf "$batchdir"
     ) &
     shellpids[$!]=1     # capture the pid of the most recent subshell
 
     # check for a solution once in a while
-    if (( loopcount % pwlength == 0 )) && checksolutions; then
-        break      # break the loop if we know the solution
+    if (( loopcount % pwlength == 0 )) && checksolutions
+        then break      # break the loop if we have a solution
     fi
 
     # Concurrency gate
     while (( ${#shellpids[@]} >= maxjobs )); do
 
+        # check for any finished subshells or wait for the next
         wait -n -p doneshell ${!shellpids[*]}
         unset "shellpids[$doneshell]"
     done
